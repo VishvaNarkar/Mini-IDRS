@@ -1,0 +1,6 @@
+netmiko==4.6.0
+pandas==2.3.3
+paramiko==4.0.0
+plotly==6.4.0
+scapy==2.6.1
+streamlit==1.51.0

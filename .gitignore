@@ -1,0 +1,5 @@
+venv/
+whitelist.txt
+__pycache__/
+*.log
+*.pyc
