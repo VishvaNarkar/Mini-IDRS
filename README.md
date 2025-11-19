@@ -66,7 +66,7 @@ It:
 
 - VMware Workstation Pro / Player + GNS3 integration  
 - 3 VMs configured: Attacker, Victim, Monitor  
-- Cisco Router image (e.g., c7200) in GNS3  
+- Cisco Router image (e.g., c7200) in GNS3 (Download link available below at References & Resources section.)  
 - Python 3.13 on the Monitor VM  
 
 ---
