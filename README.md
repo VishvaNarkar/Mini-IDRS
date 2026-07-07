@@ -1,417 +1,259 @@
-# 🛡️ Mini Intrusion Detection & Response System (IDRS) — Lab README
+# Mini Intrusion Detection & Response System (IDRS)
 
-**A compact, self-contained lab that demonstrates real-time intrusion detection and automated response using an IDS script (Scapy), Cisco router ACLs (Netmiko), and victim host hardening (Paramiko + iptables).**
-
----
-
-## 🧠 Project Overview
-
-This project implements a **mini Intrusion Detection & Response System (IDRS)** designed for **teaching and demonstration** purposes.  
-
-It:
-
-- Captures live network traffic using **Scapy**.
-- Detects common attack types:  
-  - XMAS / Nmap scans  
-  - TCP SYN floods  
-  - SSH brute-force attempts
-- Responds automatically by:
-  - Adding `deny ip host <attacker> any` to a Cisco router ACL (via **Netmiko**).
-  - Inserting an `iptables` DROP rule on the victim host (via **Paramiko** SSH).
-- Logs detections and actions to `/var/log/ids.log`.
-- Supports a **whitelist** file and a **Streamlit dashboard** for monitoring and manual control.
-
-🧩 **Lab flow**: Attacker → Router → Victim, with the **Monitor** node inspecting traffic and orchestrating the automated response.
+**A modular, Python-based IDS/IPS lab system built for VMware Workstation Pro.**  
 
 ---
 
-## 🧠 Key Features
+## Project Overview
 
-✅ **Real-time Detection** using `Scapy` packet analysis  
-✅ **Automatic Response** — blocks attacker IPs on:
-   - Cisco Router (via ACLs)
-   - Victim host (via iptables)  
-✅ **Dashboard Interface** built with `Streamlit` for:
-   - Live attack logs
-   - Manual block/unblock actions
-   - Whitelist management  
-✅ **Modular Design** — easy to extend and integrate  
-✅ **Learning-focused** — ideal for cybersecurity students and labs 
+Mini-IDRS is an educational cybersecurity project that:
 
----
-
-## ⚙️ Architecture & Components
-
-**Virtual Machines (VMs):**
-
-| Role | OS | Description |
-|------|----|--------------|
-| **Attacker** | Kali Linux | Uses tools like `nmap`, `hping3`, `hydra` |
-| **Victim** | Ubuntu | Runs `ssh`, managed via `iptables` |
-| **Monitor** | Ubuntu | Runs IDS scripts (`idrs_monitor.py`, dashboard) |
-
-**Emulation:**
-- Cisco Router (c7200) via **GNS3**, bridging VMware networks (internal & NAT).
-
-**Key Scripts:**
-- `idrs_monitor.py` — main IDS + auto-response engine  
-- `idrs_dashboard.py` — optional Streamlit dashboard  
-
-**Libraries Used:**  
-`scapy`, `netmiko`, `paramiko`, `streamlit`, `pandas`, `plotly`
+- Captures live network traffic with **Scapy**
+- Detects attacks using a **plugin-based engine** (each detector is an independent module)
+- Responds automatically via a **dual-layer block**:
+  - Linux Firewall VM — `nftables FORWARD` DROP rule (via Firewall REST API)
+  - Victim VM — `iptables INPUT` DROP rule (via Paramiko SSH)
+- Exposes a **REST API** (FastAPI) for programmatic control
+- Provides a **custom SOC dashboard** (HTML/CSS/JS) served directly from the IDS API (FastAPI) or stand-alone, featuring real-time WebSockets and Apache ECharts visualizations.
+- Persists blocked IPs to `runtime/blocked.json` — state survives monitor restarts
+- Supports **PCAP replay** for testing new detection logic without live attacks
 
 ---
 
-## 🧩 Prerequisites
+## Key Features
 
-- VMware Workstation Pro / Player + GNS3 integration  
-- 3 VMs configured: Attacker, Victim, Monitor  
-- Cisco Router image (e.g., c7200) in GNS3 (Download link available below at References & Resources section.)  
-- Python 3.13 on the Monitor VM  
-
----
-
-## 🌐 Network Design (GNS3 + VMware)
-![image alt](Topology.png)
-
----
-
-## 🏗️ GNS3 & VMware Integration (Step-by-Step Guide)
-
-### A. Preparations (Before Setting Up GNS3)
-
-1. **Run VMware Workstation Pro as Administrator**.
-2. **Open Virtual Network Editor** and configure:
-
-   * **VMnet2 — Host-Only** (no DHCP, allow promiscuous mode, subnet 192.168.10.0/24)
-   * **VMnet8 — NAT** (leave default)
-3. **Set VM network adapters** to Host-Only → VMnet2.
-4. **Enable promiscuous mode** for the Monitor VM.
-
-### B. GNS3: Create Cloud Nodes Bound to VMnet2 & VMnet8
-
-1. Open GNS3 as Administrator.
-2. Add **Cloud** and bind to VMnet2 and VMnet8.
-3. Add a **Hub** and connect Cloud-VMnet2 → Hub.
-4. Connect Router Fa0/0 → Hub and Fa0/1 → Cloud-VMnet8.
-
-### C. VMware VM ↔ GNS3 Link Mapping
-
-* VMnet2 connects Attacker, Victim, Monitor, and Router Fa0/0.
-* VMnet8 connects Router Fa0/1 to internet through NAT.
-
-### D. For Router configuration check-out ROUTER_CONFIG.md 
-
-### E. Configure VM Networking (Ubuntu/Kali)
-
-```bash
-sudo dhclient -v eth0
-ip address
-ping 192.168.10.1
-```
-
-### F. Connectivity Verification
-
-* Renew DHCP.
-* Ping router.
-* From Monitor:
-
-```bash
-sudo tcpdump -i eth0 -nn -c 50
-```
-
-### G. Quick Checklist
-
-* Cloud nodes mapped to VMnet2/VMnet8.
-* Hub forwarding traffic.
-* Monitor sees traffic.
-
-### H. Common Troubleshooting
-
-* Cloud adapter missing → run GNS3 as Admin.
-* DHCP not working → disable VMware DHCP on VMnet2.
-* Promiscuous mode issues → ensure hub is used.
-
-### I. Final Topology Summary
-
-* Cloud-VMnet2 → Hub → Attacker / Victim / Monitor / Router Fa0/0
-* Cloud-VMnet8 → Router Fa0/1
+| Feature | Detail |
+|---------|--------|
+| **Real-time detection** | Scapy packet analysis, plugin per attack type |
+| **Modular plugins** | Add detectors by dropping a file in `plugins/` |
+| **FirewallManager abstraction** | Swap nftables → iptables → pfSense without touching IDS logic |
+| **REST API control plane** | Versioned (`/api/v1/`), authenticated (`X-API-Key`) |
+| **Dashboard → IDS API only** | Dashboard has zero firewall/SSH knowledge |
+| **Persistence** | `blocked.json` survives restarts; SQLite-ready interface |
+| **Dynamic thresholds** | Update SYN/SSH thresholds live via dashboard sliders |
+| **PCAP Replay** | Replay captures through the full pipeline (`--dry-run` mode) |
+| **APScheduler** | Background jobs: health check, whitelist reload, stats, cleanup |
+| **Docker support** | `docker compose up` starts monitor + IDS API (hosting the dashboard) |
+| **No GNS3/Cisco** | Pure VMware — one Linux Firewall VM replaces the entire emulated router |
 
 ---
 
-## ⚡ Installation & Setup
-
-1. Clone the repo:
-    ```bash
-    git clone https://github.com/VishvaNarkar/Mini-IDRS.git
-    cd Mini-IDRS
-    ```
-
-2. Ensure log file exists and writable by the process:
-   ```bash
-   sudo touch /var/log/ids.log
-   sudo chown $(whoami) /var/log/ids.log
-   ```
-3. Create a whitelist file:
-   ```bash
-   nano whitelist.txt
-   ```
-
-   Example contents:
-   ```bash
-   192.168.10.1   # Router
-   192.168.10.10  # Monitor
-   127.0.0.1
-   ```
-
-4. Create a virtual environment:
-    ```bash
-    python3 -m venv venv
-    source venv/bin/activate
-    ```
-
-5. Install require dependencies:
-    ```bash
-    pip3 install -r requirements.txt
-    ```
-
-6. Edit configuration variables near the top of idrs_monitor.py and idrs_dashboard.py if your IPs or credentials differ.
-
-7. (Recommended) Configure the **victim** user to allow passwordless sudo for iptables:
-   ```bash
-   sudo visudo
-   # add:
-   monitoruser ALL=(ALL) NOPASSWD: /sbin/iptables, /usr/sbin/iptables
-   ```
-
----
-
-## 📂 Directory layout
+## Architecture
 
 ```
-/home/monitor/Mini-IDRS/
-├── idrs_monitor.py
-├── idrs_dashboard.py
+[Kali Attacker VM]  ──┐
+[Ubuntu Victim VM]    ─┼── VMnet2 (Host-Only, 192.168.10.0/24)
+[Ubuntu Monitor VM]   ─┘         │
+                                   ▼
+                       ┌──────────────────────────┐
+                       │     Linux Firewall VM    │
+                       │  eth0: 192.168.10.1/24   │ ← dnsmasq DHCP
+                       │  eth1: DHCP (VMnet8)     │ ← NAT / internet
+                       │  nftables FORWARD chain  │ ← drops attacker traffic
+                       │  Firewall API :8080       │ ← internal-only, API-key auth
+                       └──────────────────────────┘
+                                   │
+                               VMnet8 (NAT) → Internet
+```
+
+**Control flow:**
+```
+Dashboard → IDS API → FirewallManager → Firewall API → nftables
+IDS Monitor → detects → EventPipeline → FirewallManager + VictimBlocker
+```
+
+See [docs/architecture.md](docs/architecture.md) for full diagrams and component map.
+
+---
+
+## Project Structure
+
+```
+Mini-IDRS/
+├── core/              IDS engine modules
+├── plugins/           Detection plugins (one per attack type)
+├── ids_api/           IDS REST API (Monitor VM)
+├── firewall_api/      Firewall REST API (Linux Firewall VM)
+├── tools/             PCAP replay tool
+├── docs/              Architecture, API, development, deployment guides
+├── runtime/           Generated files (logs, blocked.json, pcaps) — gitignored
+├── config.yaml.example  Non-secret config template
+├── .env.example          Secrets template
+├── idrs_monitor.py    Entry point
+├── dashboard/         Pure HTML/CSS/JS SOC Dashboard frontend
 ├── requirements.txt
-├── whitelist.txt
-├── README.md
-├── CONTRIBUTING.md
-├── LICENSE
-├── .gitignore
-└── /var/log/ids.log
+├── docker-compose.yml
+└── GATEWAY_CONFIG.md  Linux Firewall VM setup guide
 ```
 
 ---
 
-## ⚙️ Configuration
+## Prerequisites
 
-Open `idrs_monitor.py` and update the following variables to match your lab:
-
-- `ROUTER_IP`, `ROUTER_SSH_USER`, `ROUTER_SSH_PASS`
-
-- `VICTIM_IP`, `VICTIM_SSH_USER`, `VICTIM_SSH_PASS`
-
-- `WHITELIST_FILE path` (defaults to `/home/monitor/Mini-IDRS/whitelist.txt`)
-
-- Detection thresholds:
-
-  - `SYN_THRESHOLD`,
-  - `SYN_WINDOW_SECONDS`
-
-SSH_THRESHOLD, SSH_WINDOW_SECONDS
-
-Tuning thresholds is essential for lab reproducibility — e.g., `hping3 -i u1000` sends ≈1000 packets/sec, so set `SYN_THRESHOLD` accordingly.
+- **VMware Workstation Pro** (no GNS3 required)
+- **4 VMs**: Linux Firewall (Ubuntu), Monitor (Ubuntu), Victim (Ubuntu), Attacker (Kali)
+- **Python 3.11+** on Monitor and Linux Firewall VMs
+- Root/sudo on Monitor VM (for Scapy raw socket sniffing)
 
 ---
 
-## ▶️ How to Run
+## Quick Start
 
-Start IDS monitor on the Monitor VM:
+### 1. Linux Firewall VM
+Follow [GATEWAY_CONFIG.md](GATEWAY_CONFIG.md) — sets up nftables, dnsmasq, and the Firewall API service.
+
+### 2. Monitor VM
 
 ```bash
-sudo python3 idrs_monitor.py -i ens33
+git clone https://github.com/VishvaNarkar/Mini-IDRS.git
+cd Mini-IDRS
+python3 -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+
+# Configure
+cp config.yaml.example config.yaml   # Edit IPs
+cp .env.example .env                  # Edit secrets (API keys, SSH creds)
+
+# Create runtime directories + initial whitelist
+mkdir -p runtime/logs runtime/pcaps runtime/cache
+echo "192.168.10.1"  >  runtime/whitelist.txt   # Firewall VM
+echo "192.168.10.12" >> runtime/whitelist.txt   # Monitor (this host)
 ```
 
-Launch dashboard:
+### 3. Victim VM
 
 ```bash
-streamlit run idrs_dashboard.py
+sudo apt install openssh-server -y
+sudo visudo  # Add: victim ALL=(ALL) NOPASSWD: /sbin/iptables
 ```
 
----
+### 4. Run (three terminals on Monitor VM)
 
-## 💣 Attack Detection Examples & Remediation
-
-⚠️ **Note**: Run these commands **only in a controlled lab environment.**
-
-1️⃣ **Nmap XMAS Scan Detection**
-
-**From Attacker:**
 ```bash
-nmap -sX <victim's IP>
+# Terminal 1 — IDS Monitor
+sudo -E python idrs_monitor.py -i ens33
+
+# Terminal 2 — IDS API (serves dashboard at http://localhost:5000/dashboard/index.html)
+uvicorn ids_api.server:app --host 0.0.0.0 --port 5000
+
+# Terminal 3 — Standalone Dashboard Web Server (Optional fallback)
+cd dashboard && python -m http.server 8080
+# Open http://192.168.10.12:8080 in a browser
 ```
 
-***Verify Router ACL:***
+Or with Docker:
 ```bash
-show access-lists IDS_BLOCK_LIST
-```
-
-**Expected Output:**
-```bash
-Extended IP access list IDS_BLOCK_LIST
-    deny ip host <attacker's IP> any log
-```
-
-2️⃣ **SYN Flood Detection**
-
-**From Attacker:**
-```bash
-hping3 -S <victim's IP> -p 22 --flood
-# or rate-limited flood:
-sudo hping3 -S -p 22 -i u1000 <victim's IP>
-```
-
-**Verify Router ACL:**
-```bash
-show ip access-lists IDS_BLOCK_LIST
-```
-
-Expect `deny ip host <attacker' IP> any`.
-
-3️⃣ **SSH Brute-Force Detection**
-
-**From Attacker:**
-```bash
-hydra -l root -P wordlist.txt ssh://<victim's IP>
-```
-
-**Check Router ACL:**
-```bash
-show access-lists IDS_BLOCK_LIST
-```
-
-🔍 Router Verification & Removal of ACL Entry
-
-**Show ACL:**
-```bash
-show access-lists IDS_BLOCK_LIST
-```
-
-**Remove entry:**
-```bash
-conf t
-ip access-list extended IDS_BLOCK_LIST
- no deny ip host <attacker' IP> any
-exit
-write memory
-```
-
-🧱 Check / Remove iptables Rules (Victim)
-
-**View current rules:**
-```bash
-sudo iptables -L -n -v
-```
-
-**Remove by IP:**
-```bash
-sudo iptables -D INPUT -s <attacker' IP> -j DROP
-sudo iptables -D FORWARD -s <attacker' IP> -j DROP
-```
-
-Or use a safe loop:
-```bash
-sudo iptables -S INPUT | grep "<attacker' IP>" | while read -r rule; do sudo iptables ${rule/-A/-D}; done
+docker compose up -d
+# Dashboard is available at: http://192.168.10.12:5000/dashboard/index.html
 ```
 
 ---
 
-## ✅ Verification Checklist
+## Detection Capabilities
 
-**1. Start monitor and tail logs:**
+| Attack | Method | Severity | Default Threshold |
+|--------|--------|----------|------------------|
+| **XMAS Scan** | TCP FIN+PSH+URG flags | LOW | Immediate (any packet) |
+| **SYN Flood** | Sliding window SYN count | CRITICAL | 25 SYNs / 5 seconds |
+| **SSH Brute-Force** | TCP handshake tracking on port 22 | HIGH | 8 handshakes / 60 seconds |
+
+Thresholds are adjustable live via the dashboard — no restart required.
+
+---
+
+## Attack Simulation (Kali VM only)
+
+> **Warning:** Use in a controlled lab environment only.
+
 ```bash
-sudo tail -f /var/log/ids.log
+nmap -sX 192.168.10.14                              # XMAS scan
+sudo hping3 -S 192.168.10.14 -p 22 --flood         # SYN flood
+hydra -l root -P wordlist.txt ssh://192.168.10.14  # SSH brute-force
 ```
 
-**2. Run attack example from attacker.**
-
-**3. Look for detection entries:**
+**Verify blocks:**
 ```bash
-2025-10-14 10:53:42 INFO SYN_FLOOD | attacker=192.168.10.12 | victim=192.168.10.11 | 100 SYNs in 10s
-2025-10-14 10:53:43 INFO [BLOCK_RESULT] attacker=192.168.10.12 router=(True,'...') victim=(True,'...')
+# Firewall VM
+sudo nft list chain inet filter FORWARD
+
+# Victim VM
+sudo iptables -L INPUT -n -v
+
+# IDS API
+curl -H "X-API-Key: your-key" http://192.168.10.12:5000/api/v1/blocks
 ```
 
-**4. Check router ACL and victim iptables for the block.**
+---
+
+## PCAP Replay
+
+Test new detectors without live attacks:
+```bash
+# Capture
+sudo tcpdump -i ens33 -w runtime/pcaps/session.pcap
+
+# Replay with dry-run (no blocking)
+python tools/replay.py --pcap runtime/pcaps/session.pcap --dry-run
+
+# Full pipeline replay
+python tools/replay.py --pcap runtime/pcaps/session.pcap
+```
 
 ---
 
-## 🧰 Troubleshooting & Common Issues
+## Documentation
 
-| Issue                                    | Solution                                                                                 |
-| ---------------------------------------- | ---------------------------------------------------------------------------------------- |
-| **Scapy permission denied**              | Run with `sudo`                                                                          |
-| **Interface not found**                  | `ip link show` or `python3 -c "from scapy.all import get_if_list; print(get_if_list())"` |
-| **Netmiko/Paramiko auth errors**         | Verify SSH credentials                                                                   |
-| **False positives**                      | Adjust `SYN_THRESHOLD` / `SSH_THRESHOLD`                                                 |
-| **Streamlit error (experimental_rerun)** | Replace `st.experimental_rerun()` with `st.rerun()`                                      |
-
----
-
-## 🔒 Security Considerations & Best Practices
-- **Do not** use on production networks.
-- Protect router/victim credentials (use SSH keys).
-- Limit dashboard access (`localhost` binding).
-- Store sensitive config in `.env` or environment variables.
-- Persist firewall rules using `iptables-save`.
+| File | Contents |
+|------|----------|
+| [docs/architecture.md](docs/architecture.md) | System design, diagrams, component map |
+| [docs/api.md](docs/api.md) | Full API reference (both APIs) |
+| [docs/development.md](docs/development.md) | Adding plugins and firewall backends |
+| [docs/deployment.md](docs/deployment.md) | Step-by-step lab setup |
+| [GATEWAY_CONFIG.md](GATEWAY_CONFIG.md) | Linux Firewall VM configuration |
 
 ---
 
-## 🚀 Future Improvements
-- REST API (FastAPI) for control
-- Replace `iptables` with `nftables`
-- “Dry-run” alert-only mode
-- Integrate threat intelligence (AbuseIPDB)
-- Add ML-based anomaly detection
+## Security Notes
+
+- Credentials go in `.env` — never in `config.yaml` or source code
+- Generate strong API keys: `python3 -c "import secrets; print(secrets.token_hex(32))"`
+- The Firewall API is bound to the internal interface only (`192.168.10.1:8080`)
+- Do not use in production — this is a lab/educational system
 
 ---
 
-## 📚 References & Resources
+## Future Improvements
 
-- [Scapy](https://scapy.net/)
-
-- [Netmiko](https://ktbyers.github.io/netmiko/)
-
-- [Paramiko](http://www.paramiko.org/)
-
-- [Streamlit](https://streamlit.io/)
-
-- [Cisco C7200 Router Image](https://drive.google.com/drive/folders/1ZuvahUud7cT_h_zbqqcPOnJ9iiwoY7uE?usp=sharing) 
-
-- Cisco IOS ACL Documentation
+- SQLite database (swap `BlockStore` backend — interface is ready)
+- TTL-based block expiry (`_cleanup_blocks` job is already scheduled)
+- nftables via Unix socket instead of HTTP (for even tighter security)
+- Threat intelligence integration (AbuseIPDB)
+- ML-based anomaly detection plugin
+- Additional detectors: UDP flood, ICMP flood, ARP spoofing, port scan
 
 ---
 
-## 📄 License
+## Libraries Used
 
-This project is released under the **MIT License** — see `LICENSE` for full text.
-
----
-
-## 👨‍💻 Authors / Contributors
-
-**Vishva Narkar** — Student 
-
-**Himesh Nayak** — Student 
+`scapy` · `paramiko` · `fastapi` · `uvicorn` · `pyyaml` · `python-dotenv` · `requests` · `apscheduler` · `psutil` · `websockets`
 
 ---
 
-## 🙏 Acknowledgements
+## License
 
-Thanks to open-source projects **Scapy, Netmiko, Paramiko**, and **Streamlit**, and the Cisco documentation community.
+MIT License — see `LICENSE`.
 
 ---
 
-## ✅ Notes
+## Authors
 
-Replace all placeholder IPs and credentials with your lab’s values before publishing.
-Use `.gitignore` to exclude sensitive data and configuration files
+**Vishva Narkar** — Student  
+**Himesh Nayak** — Student
+
+*iM.Sc. IT Architecture & Network Security — Gujarat University*
+
+---
+
+## Acknowledgements
+
+Thanks to the open-source communities behind Scapy, Paramiko, FastAPI, and Apache ECharts.

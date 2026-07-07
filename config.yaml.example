@@ -1,0 +1,54 @@
+# ============================================================
+# Mini IDRS — Configuration Template
+# ============================================================
+# Copy this file to config.yaml and adjust values for your lab.
+# IMPORTANT: config.yaml is gitignored — never commit it.
+# Secrets (API keys, passwords) go in .env — see .env.example.
+# ============================================================
+
+network:
+  monitor_ip: "192.168.10.12"   # IP of this (Monitor) VM
+  victim_ip:  "192.168.10.14"   # IP of the Victim VM
+  firewall_ip: "192.168.10.1"   # IP of the Linux Firewall VM (internal NIC)
+
+firewall_api:
+  url:       "http://192.168.10.1:8080"  # Firewall REST API — internal interface only
+  bind_host: "192.168.10.1"             # Firewall API binds to this address
+  port:      8080
+
+ids_api:
+  host: "0.0.0.0"   # IDS API listen address (Monitor VM)
+  port: 5000
+  allowed_origins:
+    - "http://localhost:5000"
+    - "http://127.0.0.1:5000"
+    - "http://192.168.10.12:5000"
+
+victim:
+  ssh_port: 22   # Victim VM SSH port (credentials go in .env)
+
+detection:
+  syn_flood:
+    threshold:      25   # SYN packets per window to trigger CRITICAL alert
+    window_seconds: 5
+  ssh_brute_force:
+    threshold:      8    # Completed TCP handshakes on port 22 per window
+    window_seconds: 60
+
+logging:
+  level: "INFO"   # DEBUG | INFO | WARNING | ERROR | CRITICAL
+
+paths:
+  whitelist: "runtime/whitelist.txt"
+  blocked:   "runtime/blocked.json"
+  stats:     "runtime/stats.json"
+  logs:      "runtime/logs/ids.log"
+  pcaps:     "runtime/pcaps/"
+  thresholds: "runtime/thresholds.json"   # written by IDS API PATCH; read by Scheduler
+
+scheduler:
+  health_check_interval_seconds: 60    # ping Firewall API /api/v1/health
+  whitelist_reload_seconds:      30    # hot-reload whitelist.txt
+  thresholds_reload_seconds:     30    # hot-reload runtime/thresholds.json
+  stats_interval_seconds:        300   # aggregate stats → runtime/stats.json
+  block_cleanup_hours:           1     # reserved for TTL-based cleanup (future)

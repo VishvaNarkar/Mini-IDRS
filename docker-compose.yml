@@ -1,0 +1,41 @@
+# Mini-IDRS — Docker Compose
+# Runs the Monitor-VM services as containers.
+# The Firewall API is NOT here — it runs as a systemd service on the Linux Firewall VM.
+#
+# Prerequisites:
+#   1. Copy config.yaml.example → config.yaml and fill in your lab IPs.
+#   2. Copy .env.example → .env and fill in real secrets.
+#   3. Ensure runtime/ directory exists: mkdir -p runtime/logs runtime/pcaps runtime/cache
+#
+# Start:
+#   docker compose up -d
+#
+# Logs:
+#   docker compose logs -f monitor
+#   docker compose logs -f ids-api
+
+services:
+
+  monitor:
+    build: .
+    network_mode: host          # Required for Scapy raw packet capture
+    command: python idrs_monitor.py -i eth0
+    env_file: .env
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - ./runtime:/app/runtime
+    restart: unless-stopped
+    depends_on:
+      - ids-api
+
+  ids-api:
+    build: .
+    ports:
+      - "5000:5000"
+    command: uvicorn ids_api.server:app --host 0.0.0.0 --port 5000
+    env_file: .env
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - ./runtime:/app/runtime
+      - ./dashboard:/app/dashboard:ro   # Mount dashboard directory as read-only
+    restart: unless-stopped

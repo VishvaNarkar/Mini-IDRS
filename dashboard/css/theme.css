@@ -1,0 +1,98 @@
+/* dashboard/css/theme.css — Color palettes and theme configurations */
+
+:root {
+  /* Default: Light Theme */
+  --bg-primary: #f3f4f6;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #e5e7eb;
+  
+  --border-color: #d1d5db;
+  
+  --text-primary: #111827;
+  --text-secondary: #4b5563;
+  --text-muted: #9ca3af;
+  
+  --accent-color: #0284c7;
+  --accent-hover: #0369a1;
+  
+  --severity-low: #059669;
+  --severity-medium: #d97706;
+  --severity-high: #ea580c;
+  --severity-critical: #dc2626;
+  
+  --shadow-color: rgba(0, 0, 0, 0.05);
+  --glass-bg: rgba(255, 255, 255, 0.8);
+  --glass-border: rgba(0, 0, 0, 0.05);
+}
+
+body.light-theme {
+  --bg-primary: #f3f4f6;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #e5e7eb;
+  
+  --border-color: #d1d5db;
+  
+  --text-primary: #111827;
+  --text-secondary: #4b5563;
+  --text-muted: #9ca3af;
+  
+  --accent-color: #0284c7;
+  --accent-hover: #0369a1;
+  
+  --severity-low: #059669;
+  --severity-medium: #d97706;
+  --severity-high: #ea580c;
+  --severity-critical: #dc2626;
+  
+  --shadow-color: rgba(0, 0, 0, 0.05);
+  --glass-bg: rgba(255, 255, 255, 0.8);
+  --glass-border: rgba(0, 0, 0, 0.05);
+}
+
+body.neon-theme {
+  --bg-primary: #000000;
+  --bg-secondary: #0a0a0a;
+  --bg-tertiary: #141414;
+  
+  --border-color: #00ff66;       /* Matrix Green */
+  
+  --text-primary: #39ff14;       /* Neon Green */
+  --text-secondary: #00ffcc;     /* Neon Cyan */
+  --text-muted: #555555;
+  
+  --accent-color: #ff007f;       /* Neon Pink */
+  --accent-hover: #e0006c;
+  
+  --severity-low: #00ff66;
+  --severity-medium: #ffff00;
+  --severity-high: #ff9900;
+  --severity-critical: #ff0033;
+  
+  --shadow-color: rgba(0, 255, 102, 0.15);
+  --glass-bg: rgba(0, 0, 0, 0.85);
+  --glass-border: rgba(0, 255, 102, 0.2);
+}
+
+body.dark-theme {
+  --bg-primary: #0f172a;        /* slate-900 */
+  --bg-secondary: #1e293b;      /* slate-800 */
+  --bg-tertiary: #334155;       /* slate-700 */
+  
+  --border-color: #475569;      /* slate-600 */
+  
+  --text-primary: #f8fafc;      /* slate-50 */
+  --text-secondary: #cbd5e1;    /* slate-300 */
+  --text-muted: #64748b;        /* slate-500 */
+  
+  --accent-color: #38bdf8;      /* sky-400 */
+  --accent-hover: #0ea5e9;      /* sky-500 */
+  
+  --severity-low: #34d399;      /* emerald-400 */
+  --severity-medium: #fbbf24;   /* amber-400 */
+  --severity-high: #fb923c;     /* orange-400 */
+  --severity-critical: #f87171; /* red-400 */
+  
+  --shadow-color: rgba(0, 0, 0, 0.3);
+  --glass-bg: rgba(30, 41, 59, 0.8);
+  --glass-border: rgba(255, 255, 255, 0.05);
+}

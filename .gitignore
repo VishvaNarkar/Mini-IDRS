@@ -1,5 +1,26 @@
+# Python
 venv/
-whitelist.txt
 __pycache__/
+*.py[cod]
+*.pyo
+
+# Secrets and local config (NEVER commit these)
+.env
+config.yaml
+
+# All runtime-generated files
+runtime/
+
+# Scapy temp files
+.scapy_cache/
+
+# Logs (in case logs land outside runtime/)
 *.log
-*.pyc
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

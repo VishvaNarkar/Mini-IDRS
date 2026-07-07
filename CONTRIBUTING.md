@@ -1,161 +1,151 @@
-# 🤝 Contributing to Mini Intrusion Detection & Response System (IDRS)
+# Contributing to Mini IDRS
 
-Thank you for considering contributing to **Mini IDRS**!  
-This project is a student-led cybersecurity lab simulation demonstrating real-time Intrusion Detection & Response using Python, Scapy, and Cisco IOS automation.
+Thank you for contributing to **Mini IDRS** — a modular, educational  
+Intrusion Detection & Response System built on Python and VMware.
 
 ---
 
-## 🧭 How to Contribute
+## Workflow
 
-### 1️⃣ Fork the repository
-Click the **Fork** button (top-right on GitHub) to create your copy of the project.
-
-### 2️⃣ Clone your fork
 ```bash
+# 1. Fork and clone
 git clone https://github.com/VishvaNarkar/Mini-IDRS.git
 cd Mini-IDRS
-```
 
-### 3️⃣ Create a feature branch
-```bash
-git checkout -b feature/<feature-name>
-```
+# 2. Create a feature branch
+git checkout -b feature/<name>
 
-### 4️⃣ Make your changes
+# 3. Set up environment
+python3 -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+cp config.yaml.example config.yaml
+cp .env.example .env   # fill in test values
 
-You can:
-
-- Add or enhance detection logic in idrs_monitor.py
-
-- Improve the Streamlit dashboard (idrs_dashboard.py)
-
-- Update documentation or add test cases
-
-### 5️⃣ Commit and push your changes
-```bash
+# 4. Make changes → commit → push
 git add .
-git commit -m "Add <feature-name>: brief description"
-git push origin feature/<feature-name>
+git commit -m "feat: describe your change"
+git push origin feature/<name>
+
+# 5. Open a Pull Request on GitHub
 ```
-
-### 6️⃣ Create a Pull Request
-
-Go to your fork on GitHub and click `“New Pull Request”`.
-Explain your changes clearly — include screenshots if applicable.
 
 ---
 
-## 🧰 Development Setup
+## Development Setup
 
-Requirements:
+- Python 3.11+
+- VMware Workstation Pro (no GNS3 required)
+- See [docs/deployment.md](docs/deployment.md) for full lab setup
 
-- Python 3.13
-
-- VMware / GNS3 for network emulation (optional)
-
-- Create a virtual environment:
+Run the IDS monitor:
 ```bash
-python3 -m venv venv
-source venv/bin/activate
+sudo -E python idrs_monitor.py -i ens33
 ```
 
-- Required packages:
+Run the IDS API:
+```bash
+uvicorn ids_api.server:app --host 0.0.0.0 --port 5000 --reload
+```
+
+Run the dashboard (either served automatically by FastAPI, or locally using python http.server):
+```bash
+# Served by FastAPI: http://localhost:5000/dashboard/index.html
+# Or served stand-alone:
+cd dashboard && python -m http.server 8080
+```
+
+---
+
+## Code Style
+
+- Follow **PEP 8**
+- Use **type hints** on all functions and class attributes
+- Use `logging.getLogger(__name__)` — never `print()` in library code
+- Keep functions focused and well-commented, especially detection logic
+- Never commit secrets — everything sensitive goes in `.env`
+
+---
+
+## Adding a Detection Plugin
+
+1. Create `plugins/<attack_name>.py` — subclass `BaseDetector`
+2. Return a `DetectionEvent` when the attack is detected, `None` otherwise
+3. Register it in `idrs_monitor.py` (`plugins` list)
+4. Add severity mapping in `ids_api/server.py` (`_SEV_MAP`)
+5. Optionally add a color map in `dashboard/js/charts.js`
+
+Full walkthrough → [docs/development.md](docs/development.md)
+
+---
+
+## Adding a Firewall Backend
+
+1. Subclass `FirewallBackend` in `core/firewall.py`
+2. Implement `block()`, `unblock()`, `list_rules()`
+3. Swap the backend in `idrs_monitor.py`
+
+No other changes needed — the pipeline, API, and dashboard are unaffected.
+
+---
+
+## Testing
+
+Use the PCAP replay tool to test detectors without live attacks:
 
 ```bash
-pip3 install -r requirements.txt
+# Capture attacks
+sudo tcpdump -i ens33 -w runtime/pcaps/test.pcap
+
+# Replay with dry-run (no actual blocking)
+python tools/replay.py --pcap runtime/pcaps/test.pcap --dry-run --min-severity LOW
 ```
 
-Run the IDS:
+Verify detections in `runtime/logs/ids.log` and check `runtime/blocked.json`.
+
+Verify Firewall rules on the Linux Firewall VM:
 ```bash
-sudo python3 idrs_monitor.py -i ens33
+sudo nft list chain inet filter FORWARD
 ```
 
-Launch the dashboard:
+Verify Victim iptables:
 ```bash
-streamlit run idrs_dashboard.py
+sudo iptables -L INPUT -n -v
 ```
 
 ---
 
-## 🧱 Code Style & Guidelines
+## Contribution Ideas
 
-To keep the codebase clean and readable:
-
-- Follow **PEP 8** for Python style.
-
-- Use descriptive variable names.
-
-- Comment your detection logic clearly.
-
-- Log events consistently (`/var/log/ids.log`).
-
-- Keep credentials out of commits — use environment variables or `.env` files.
+- New detector plugins: UDP flood, ICMP flood, ARP spoofing, port scan, DNS amplification
+- SQLite backend for `BlockStore` (interface is ready — just swap `persistence.py`)
+- Email / Slack / Telegram alerting on CRITICAL events
+- TTL-based block expiry (Scheduler job stub already exists)
+- ELK stack log shipper
+- JWT authentication for IDS API (upgrade from simple API key)
+- Unit tests for detection plugins using PCAP fixtures
 
 ---
 
-## 🧪 Testing Guidelines
+## Reporting Issues
 
-To test new detection logic:
-
-1. Use the Kali attacker VM to run simulated attacks:  
-
-   - `nmap -sX` for XMAS scan
-
-   - `hping3 -S` for SYN flood
-
-   - `hydra` for SSH brute-force
-
-2. Observe `/var/log/ids.log` for new detection entries.
-
-3. Verify router ACL and iptables changes.
-
----
-
-## 🧠 Contribution Ideas
-
-- Add new detection types (UDP flood, ICMP flood, ARP spoof)
-
-- Implement alerting (email/Slack/Telegram)
-
-- Integrate with a central logging system (ELK stack)
-
-- Add visualization improvements in the dashboard
-
-- Implement persistent database logging (SQLite / MongoDB)
-
-- Develop a CLI tool for managing whitelist/blocks
-
----
-
-## ⚙️ Reporting Issues
-
-If you find a bug or false positive:
-
-1. Check if it’s reproducible.
-
-2. Open an **issue** on GitHub.
-
-3. Include:
+1. Verify the issue is reproducible
+2. Open a GitHub Issue with:
    - Steps to reproduce
-   - Log excerpt
-   - Expected vs actual behavior
-   - Screenshot if helpful
+   - Log excerpt from `runtime/logs/ids.log`
+   - Expected vs actual behaviour
+   - Screenshot if applicable
 
 ---
 
-## 💬 Code of Conduct
+## Code of Conduct
 
-We’re a respectful learning community.
-
-  - Be kind, patient, and professional.
-  
-  - Avoid sharing sensitive data or real credentials.
-
-  - Focus on constructive feedback.
+- Be respectful and constructive
+- Do not share real credentials or production IP addresses
+- This is an educational project — keep it that way
 
 ---
 
-## 🧩 Acknowledgements
+## Acknowledgements
 
-This project was developed as part of the **iM.Sc. IT Architecture & Network Security** program at **Gujarat University**.
-We welcome educational collaborations, improvements, and feedback!
+Developed as part of the **iM.Sc. IT Architecture & Network Security** programme  
+at **Gujarat University**. Educational collaborations and feedback are welcome.

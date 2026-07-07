@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mini IDRS — Security Operations Center</title>
+  
+  <!-- CSS Stylesheets -->
+  <link rel="stylesheet" href="css/theme.css">
+  <link rel="stylesheet" href="css/style.css">
+  
+  <!-- Lucide Icons (CDN wrapper) -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <!-- Apache ECharts (Local Vendor Library) -->
+  <script src="vendor/echarts.min.js"></script>
+</head>
+<body>
+
+  <!-- Toast Alert Overlay Container -->
+  <div id="toast-container"></div>
+
+  <!-- Primary Application Container -->
+  <div id="app-container">
+    
+    <!-- Top Navigation Bar -->
+    <header id="top-navbar">
+      <div class="logo-section">
+        <i data-lucide="shield-alert" class="logo-icon"></i>
+        <span>MINI <span style="font-weight: 400; opacity: 0.8;">IDRS</span></span>
+      </div>
+
+      <div class="system-status-indicator">
+        <div class="status-badge" title="Status of the main IDS Engine">
+          <div id="status-ids-api" class="status-dot"></div>
+          <span>IDS API</span>
+        </div>
+        <div class="status-badge" title="Connection status with the Linux Firewall VM REST API">
+          <div id="status-firewall-api" class="status-dot"></div>
+          <span>Firewall API</span>
+        </div>
+        <div class="status-badge" title="WebSocket streaming connection status">
+          <div id="status-ws-stream" class="status-dot"></div>
+          <span>Stream</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Sidebar Navigation -->
+    <aside id="left-sidebar">
+      <nav class="sidebar-menu">
+        <a class="menu-item active" data-tab="dashboard">
+          <i data-lucide="layout-dashboard"></i>
+          <span>Dashboard</span>
+        </a>
+        <a class="menu-item" data-tab="alerts">
+          <i data-lucide="activity"></i>
+          <span>Alert Log</span>
+        </a>
+        <a class="menu-item" data-tab="blocked">
+          <i data-lucide="shield-off"></i>
+          <span>Blocked IPs</span>
+        </a>
+        <a class="menu-item" data-tab="whitelist">
+          <i data-lucide="shield-check"></i>
+          <span>Whitelist</span>
+        </a>
+        <a class="menu-item" data-tab="settings">
+          <i data-lucide="sliders"></i>
+          <span>Settings</span>
+        </a>
+        <a class="menu-item" data-tab="about">
+          <i data-lucide="info"></i>
+          <span>About</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="form-group" style="margin-bottom: 0;">
+          <label for="theme-selector">Visual Theme</label>
+          <select id="theme-selector">
+            <option value="light">Light Theme</option>
+            <option value="dark">Dark Theme</option>
+            <option value="neon">Cyber Neon</option>
+          </select>
+        </div>
+        <div class="mono" style="font-size: 0.7rem; color: var(--text-muted); text-align: center;">
+          v1.0.0 · Lab Deployment
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main id="main-content">
+
+      <!-- =====================================================================
+           TAB: Dashboard View
+           ===================================================================== -->
+      <section id="tab-dashboard" class="tab-content active">
+        <!-- KPI Cards Grid -->
+        <div class="dashboard-grid">
+          <div class="card kpi-card">
+            <span class="kpi-title">Total Alerts (Active session)</span>
+            <div id="kpi-alerts-count" class="kpi-value">0</div>
+          </div>
+          <div class="card kpi-card">
+            <span class="kpi-title">Active IP Blocks</span>
+            <div id="kpi-blocked-count" class="kpi-value">0</div>
+          </div>
+          <div class="card kpi-card">
+            <span class="kpi-title">IDS Status</span>
+            <div id="kpi-ids-status" class="kpi-value" style="font-size: 1.5rem; line-height: 2rem; color: var(--text-muted);">Unknown</div>
+          </div>
+          <div class="card kpi-card">
+            <span class="kpi-title">Linux Firewall VM</span>
+            <div id="kpi-fw-status" class="kpi-value" style="font-size: 1.5rem; line-height: 2rem; color: var(--text-muted);">Unknown</div>
+          </div>
+        </div>
+
+        <!-- Visualizations Grid -->
+        <div class="viz-grid">
+          <div class="card chart-card">
+            <div class="chart-header">
+              <span class="chart-title" style="display: flex; align-items: center; gap: 8px;"><i data-lucide="activity" style="width: 18px; height: 18px; color: var(--accent-color);"></i> Real-Time Attack Timeline (Last 60 Minutes)</span>
+            </div>
+            <div id="timeline-chart" class="chart-body"></div>
+          </div>
+          <div class="card chart-card">
+            <div class="chart-header">
+              <span class="chart-title" style="display: flex; align-items: center; gap: 8px;"><i data-lucide="pie-chart" style="width: 18px; height: 18px; color: var(--accent-color);"></i> Attack Type Distribution</span>
+            </div>
+            <div id="distribution-chart" class="chart-body"></div>
+          </div>
+        </div>
+
+        <!-- Top Attackers and System Resources -->
+        <div class="viz-grid">
+          <div class="card chart-card">
+            <div class="chart-header">
+              <span class="chart-title" style="display: flex; align-items: center; gap: 8px;"><i data-lucide="bar-chart-3" style="width: 18px; height: 18px; color: var(--accent-color);"></i> Top Attacker IP Addresses (Ranked)</span>
+            </div>
+            <div id="attackers-chart" class="chart-body"></div>
+          </div>
+          <div class="card" style="display: flex; flex-direction: column; justify-content: space-between; padding: 24px;">
+            <div>
+              <h3 style="font-size: 1rem; font-weight: 600; margin-bottom: 20px; display: flex; align-items: center; gap: 8px;"><i data-lucide="monitor" style="width: 18px; height: 18px; color: var(--accent-color);"></i> Monitor VM Performance</h3>
+              
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <i data-lucide="cpu" style="color: var(--accent-color); width: 18px; height: 18px;"></i>
+                  <span style="font-size: 0.9rem; font-weight: 500;">CPU Utilization</span>
+                </div>
+                <span id="status-cpu" class="mono font-semibold" style="font-size: 1.1rem;">0%</span>
+              </div>
+              
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <i data-lucide="database" style="color: var(--accent-color); width: 18px; height: 18px;"></i>
+                  <span style="font-size: 0.9rem; font-weight: 500;">Memory Usage</span>
+                </div>
+                <span id="status-ram" class="mono font-semibold" style="font-size: 1.1rem;">0%</span>
+              </div>
+            </div>
+
+            <div style="background-color: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; padding: 16px; font-size: 0.8rem; line-height: 1.4;">
+              <span style="font-weight: 600; text-transform: uppercase; color: var(--text-secondary); display: block; margin-bottom: 6px;">Deployment Info</span>
+              <span>All attacks are dropped at the <strong>Firewall FORWARD</strong> chain and the <strong>Victim INPUT</strong> chain.</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =====================================================================
+           TAB: Alert Log
+           ===================================================================== -->
+      <section id="tab-alerts" class="tab-content">
+        <div class="card table-card">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h2 style="font-size: 1.2rem; font-weight: 600; display: flex; align-items: center; gap: 8px;"><i data-lucide="terminal" style="color: var(--accent-color);"></i> Full Attack Alert Log</h2>
+            <button class="btn btn-secondary" onclick="App.loadAlerts()">
+              <i data-lucide="refresh-cw" style="width: 16px; height: 16px;"></i> Refresh Log
+            </button>
+          </div>
+
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Attacker IP</th>
+                  <th>Victim IP</th>
+                  <th>Attack Type</th>
+                  <th>Severity</th>
+                  <th>Detection Time</th>
+                </tr>
+              </thead>
+              <tbody id="alert-log-items">
+                <!-- Javascript will render rows here -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- =====================================================================
+           TAB: Blocked IPs
+           ===================================================================== -->
+      <section id="tab-blocked" class="tab-content">
+        <!-- Manual Block Controls -->
+        <div class="card" style="display: flex; flex-direction: column; gap: 16px;">
+          <h2 style="font-size: 1.1rem; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+            <i data-lucide="shield-alert" style="color: var(--severity-critical); width: 20px; height: 20px;"></i>
+            Manual IP Block Control
+          </h2>
+          <div style="display: grid; grid-template-columns: 2fr 3fr auto; gap: 16px; align-items: flex-end;">
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="block-ip-input">Target IP Address</label>
+              <input type="text" id="block-ip-input" placeholder="e.g. 192.168.10.99">
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="block-reason-input">Block Reason / Incident Ticket</label>
+              <input type="text" id="block-reason-input" placeholder="e.g. suspicious activity detected on router">
+            </div>
+            <button class="btn btn-danger" onclick="BlockList.block()" style="height: 42px;">
+              <i data-lucide="lock"></i> Block Target
+            </button>
+          </div>
+        </div>
+
+        <!-- Block List Table -->
+        <div class="card table-card">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h2 style="font-size: 1.2rem; font-weight: 600; display: flex; align-items: center; gap: 8px;"><i data-lucide="shield-x" style="color: var(--severity-critical);"></i> Active Firewall Block Rules</h2>
+            <button class="btn btn-secondary" onclick="BlockList.load()">
+              <i data-lucide="refresh-cw" style="width: 16px; height: 16px;"></i> Refresh
+            </button>
+          </div>
+
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>IP Address</th>
+                  <th>Triggering Event</th>
+                  <th>Severity</th>
+                  <th>Confidence</th>
+                  <th>Reason / Log Details</th>
+                  <th>Blocked Since</th>
+                  <th style="text-align: right;">Action</th>
+                </tr>
+              </thead>
+              <tbody id="blocked-items">
+                <!-- Javascript will render blocked records -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- =====================================================================
+           TAB: Whitelist
+           ===================================================================== -->
+      <section id="tab-whitelist" class="tab-content">
+        <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 24px;">
+          <!-- Add to Whitelist Form -->
+          <div class="card" style="display: flex; flex-direction: column; gap: 16px; height: fit-content;">
+            <h2 style="font-size: 1.1rem; font-weight: 600; display: flex; align-items: center; gap: 8px;"><i data-lucide="user-plus" style="color: var(--accent-color);"></i> Whitelist an IP Address</h2>
+            <div class="form-group">
+              <label for="whitelist-ip-input">Target IP Address</label>
+              <input type="text" id="whitelist-ip-input" placeholder="e.g. 192.168.10.15">
+            </div>
+            <button class="btn" onclick="Whitelist.add()">
+              <i data-lucide="plus"></i> Add IP
+            </button>
+          </div>
+
+          <!-- Whitelist Table -->
+          <div class="card table-card">
+            <h2 style="font-size: 1.2rem; font-weight: 600; display: flex; align-items: center; gap: 8px;"><i data-lucide="shield-check" style="color: var(--severity-low);"></i> Active Whitelisted Host Addresses</h2>
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>IP Address</th>
+                    <th style="text-align: right;">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="whitelist-items">
+                  <!-- Whitelist items will render here -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =====================================================================
+           TAB: Settings
+           ===================================================================== -->
+      <section id="tab-settings" class="tab-content">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+          <!-- Connection Settings -->
+          <div class="card" style="display: flex; flex-direction: column; gap: 20px;">
+            <h2 style="font-size: 1.2rem; font-weight: 600; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="link" style="color: var(--accent-color);"></i>
+              IDS API Connection
+            </h2>
+            <div class="form-group">
+              <label for="ids-url-input">IDS API URL Address</label>
+              <input type="text" id="ids-url-input" placeholder="http://192.168.10.12:5000">
+            </div>
+            <div class="form-group">
+              <label for="ids-key-input">API Authentication Key (X-API-Key)</label>
+              <input type="password" id="ids-key-input" placeholder="Enter key set in .env">
+            </div>
+            <button class="btn" onclick="App.saveConfig()">
+              <i data-lucide="save"></i> Connect & Save
+            </button>
+          </div>
+
+          <!-- Dynamic Detection Thresholds -->
+          <div class="card" style="display: flex; flex-direction: column; gap: 20px;">
+            <h2 style="font-size: 1.2rem; font-weight: 600; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="sliders" style="color: var(--accent-color);"></i>
+              Detection Sensitivity Thresholds
+            </h2>
+            <form id="thresholds-form" style="display: flex; flex-direction: column; gap: 16px;">
+              <h3 style="font-size: 0.9rem; font-weight: 600; color: var(--severity-critical);">SYN Flood Settings</h3>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label for="syn-threshold-input">SYN Packets (per window)</label>
+                  <input type="number" id="syn-threshold-input" min="5" max="1000">
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label for="syn-window-input">Sliding Window (seconds)</label>
+                  <input type="number" id="syn-window-input" min="1" max="60">
+                </div>
+              </div>
+
+              <h3 style="font-size: 0.9rem; font-weight: 600; color: var(--severity-high); margin-top: 10px;">SSH Brute Force Settings</h3>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label for="ssh-threshold-input">Handshakes (per window)</label>
+                  <input type="number" id="ssh-threshold-input" min="2" max="100">
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label for="ssh-window-input">Sliding Window (seconds)</label>
+                  <input type="number" id="ssh-window-input" min="10" max="600">
+                </div>
+              </div>
+
+              <button type="submit" class="btn" style="margin-top: 10px;">
+                <i data-lucide="sliders"></i> Apply & Distribute
+              </button>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <!-- =====================================================================
+           TAB: About
+           ===================================================================== -->
+      <section id="tab-about" class="tab-content">
+        <div class="card" style="display: flex; flex-direction: column; gap: 16px; line-height: 1.6;">
+          <h2 style="font-size: 1.4rem; font-weight: 600; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+            <i data-lucide="info" style="color: var(--accent-color);"></i>
+            About Mini IDRS
+          </h2>
+          <p>
+            <strong>Mini IDRS (Intrusion Detection & Response System)</strong> is an educational lab project demonstrating automated intrusion response in a VMware-only virtual lab environment.
+          </p>
+          <p>
+            It monitors network traffic, extracts features in real-time, identifies anomalous patterns using modular detection plugins, and pushes drop actions simultaneously onto the Linux Firewall VM (FORWARD chain) and the Target host itself (INPUT chain).
+          </p>
+          <h3 style="font-size: 1.1rem; font-weight: 600; margin-top: 12px;">Academic Info</h3>
+          <ul>
+            <li><strong>Project:</strong> Mini-IDRS (Security Operations Center Dashboard upgrade)</li>
+            <li><strong>Course:</strong> iM.Sc. IT Architecture & Network Security</li>
+            <li><strong>Institution:</strong> Gujarat University</li>
+            <li><strong>Authors:</strong> Vishva Narkar & Himesh Nayak</li>
+          </ul>
+        </div>
+      </section>
+
+    </main>
+
+  </div>
+
+  <!-- JavaScript Modules -->
+  <script src="js/api.js"></script>
+  <script src="js/websocket.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/whitelist.js"></script>
+  <script src="js/block.js"></script>
+  <script src="js/dashboard.js"></script>
+
+  <!-- Init icons -->
+  <script>
+    if (typeof lucide !== 'undefined') {
+      lucide.createIcons();
+    }
+  </script>
+</body>
+</html>
