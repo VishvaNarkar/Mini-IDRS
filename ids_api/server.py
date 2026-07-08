@@ -15,7 +15,7 @@ import json
 import logging
 import os
 import re
-from datetime import datetime, timezone
+from ipaddress import IPv4Address
 from pathlib import Path
 from typing import Set
 
@@ -62,10 +62,11 @@ app = FastAPI(
 # CORS Configuration
 # ---------------------------------------------------------------------------
 allowed = cfg.ids_api.allowed_origins or ["*"]
+allow_credentials = "*" not in allowed
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed,
-    allow_credentials=True,
+    allow_credentials=allow_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -243,34 +244,43 @@ def get_system_stats(_key: str = Depends(require_api_key)) -> dict:
 async def block_ip(
     req: BlockRequest, _key: str = Depends(require_api_key)
 ) -> BlockResponse:
-    fw_ok     = firewall_mgr.block(req.ip)
-    victim_ok = victim_blocker.block(req.ip)
+    ip = str(req.ip)
+    if whitelist_mgr.is_whitelisted(ip):
+        raise HTTPException(status_code=400, detail=f"{ip} is whitelisted")
+    if block_store.is_blocked(ip):
+        raise HTTPException(status_code=400, detail=f"{ip} is already blocked")
+
+    fw_ok     = firewall_mgr.block(ip)
+    victim_ok = victim_blocker.block(ip)
+    if not (fw_ok or victim_ok):
+        raise HTTPException(status_code=500, detail=f"Failed to block {ip}")
 
     # Persist the manual block as a DetectionEvent
     evt = DetectionEvent(
         attack     = "MANUAL_BLOCK",
-        attacker   = req.ip,
+        attacker   = ip,
         victim     = cfg.network.victim_ip,
         severity   = Severity.HIGH,
         confidence = 1.0,
         details    = {"reason": req.reason},
     )
-    block_store.add(evt)
+    block_store.add(evt, firewall_blocked=fw_ok, victim_blocked=victim_ok)
 
     # Broadcast manual block
     await broadcast_event(evt.to_dict())
 
-    return BlockResponse(ip=req.ip, firewall_ok=fw_ok, victim_ok=victim_ok)
+    return BlockResponse(ip=ip, firewall_ok=fw_ok, victim_ok=victim_ok)
 
 
 @app.delete("/api/v1/block/{ip}", response_model=UnblockResponse, tags=["Blocking"])
 def unblock_ip(
-    ip: str, _key: str = Depends(require_api_key)
+    ip: IPv4Address, _key: str = Depends(require_api_key)
 ) -> UnblockResponse:
-    fw_ok     = firewall_mgr.unblock(ip)
-    victim_ok = victim_blocker.unblock(ip)
-    block_store.remove(ip)
-    return UnblockResponse(ip=ip, firewall_ok=fw_ok, victim_ok=victim_ok)
+    ip_str = str(ip)
+    fw_ok     = firewall_mgr.unblock(ip_str)
+    victim_ok = victim_blocker.unblock(ip_str)
+    block_store.remove(ip_str)
+    return UnblockResponse(ip=ip_str, firewall_ok=fw_ok, victim_ok=victim_ok)
 
 
 @app.get("/api/v1/blocks", tags=["Blocking"])
@@ -307,16 +317,18 @@ def get_whitelist(_key: str = Depends(require_api_key)) -> dict:
 def add_whitelist(
     req: WhitelistAddRequest, _key: str = Depends(require_api_key)
 ) -> dict:
-    whitelist_mgr.add(req.ip)
-    return {"added": req.ip}
+    ip = str(req.ip)
+    whitelist_mgr.add(ip)
+    return {"added": ip}
 
 
 @app.delete("/api/v1/whitelist/{ip}", tags=["Whitelist"])
-def remove_whitelist(ip: str, _key: str = Depends(require_api_key)) -> dict:
-    removed = whitelist_mgr.remove(ip)
+def remove_whitelist(ip: IPv4Address, _key: str = Depends(require_api_key)) -> dict:
+    ip_str = str(ip)
+    removed = whitelist_mgr.remove(ip_str)
     if not removed:
-        raise HTTPException(status_code=404, detail=f"{ip} not in whitelist")
-    return {"removed": ip}
+        raise HTTPException(status_code=404, detail=f"{ip_str} not in whitelist")
+    return {"removed": ip_str}
 
 
 # ---------------------------------------------------------------------------

@@ -95,7 +95,6 @@ def _build_pipeline(dry_run: bool) -> tuple[list, DetectionContext, EventPipelin
         from core.firewall import FirewallManager as FM
         noop_fw = FM(_NoopFirewall())
 
-        from core.victim import VictimBlocker as VB
         # Monkey-patch the victim blocker
         victim_blocker = type("NoopVB", (), {"block": lambda s, ip: True, "unblock": lambda s, ip: True})()
 

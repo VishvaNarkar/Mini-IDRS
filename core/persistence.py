@@ -8,12 +8,14 @@ completely unaffected.
 blocked.json schema:
     [
       {
-        "ip":         "192.168.10.15",
-        "attack":     "SYN_FLOOD",
-        "severity":   "CRITICAL",
-        "confidence": 0.95,
-        "reason":     "SYN_FLOOD | attacker=... victim=...",
-        "timestamp":  "2025-10-14T10:53:42+00:00"
+        "ip":               "192.168.10.15",
+        "attack":           "SYN_FLOOD",
+        "severity":         "CRITICAL",
+        "confidence":       0.95,
+        "reason":           "SYN_FLOOD | attacker=... victim=...",
+        "timestamp":        "2025-10-14T10:53:42+00:00",
+        "firewall_blocked": true,
+        "victim_blocked":   false
       },
       ...
     ]
@@ -64,22 +66,34 @@ class BlockStore:
     # Mutations
     # ------------------------------------------------------------------
 
-    def add(self, event: DetectionEvent) -> None:
-        """Persist a DetectionEvent. No-op if the IP is already recorded."""
+    def add(
+        self,
+        event: DetectionEvent,
+        firewall_blocked: bool = True,
+        victim_blocked: bool = True,
+    ) -> None:
+        """Persist a DetectionEvent with enforcement status.
+
+        Defaults preserve compatibility for any older callers while new pipeline
+        paths pass the actual firewall/victim outcomes. No-op if recorded.
+        """
         with self._lock:
             if event.attacker in self._records:
                 return
             self._records[event.attacker] = {
-                "ip":         event.attacker,
-                "attack":     event.attack,
-                "severity":   event.severity.value,
-                "confidence": round(event.confidence, 4),
-                "reason":     event.to_log_line(),
-                "timestamp":  event.timestamp.isoformat(),
+                "ip":               event.attacker,
+                "attack":           event.attack,
+                "severity":         event.severity.value,
+                "confidence":       round(event.confidence, 4),
+                "reason":           event.to_log_line(),
+                "timestamp":        event.timestamp.isoformat(),
+                "firewall_blocked": bool(firewall_blocked),
+                "victim_blocked":   bool(victim_blocked),
             }
             self._flush()
         logger.info(
-            f"[BLOCKSTORE] Persisted {event.attacker} ({event.attack})"
+            f"[BLOCKSTORE] Persisted {event.attacker} ({event.attack}) "
+            f"firewall={firewall_blocked} victim={victim_blocked}"
         )
 
     def remove(self, ip: str) -> bool:
