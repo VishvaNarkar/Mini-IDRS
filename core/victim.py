@@ -50,11 +50,20 @@ class VictimBlocker:
 
     def block(self, ip: str) -> bool:
         """Insert an iptables INPUT DROP rule for the given IP."""
+        if not self._has_credentials():
+            logger.error("[VICTIM] Cannot block %s — missing SSH credentials", ip)
+            return False
         return self._run(_BLOCK_CMD.format(ip=ip), action=f"block({ip})")
 
     def unblock(self, ip: str) -> bool:
         """Remove the iptables INPUT DROP rule for the given IP."""
+        if not self._has_credentials():
+            logger.error("[VICTIM] Cannot unblock %s — missing SSH credentials", ip)
+            return False
         return self._run(_UNBLOCK_CMD.format(ip=ip), action=f"unblock({ip})")
+
+    def _has_credentials(self) -> bool:
+        return bool(self._username and self._password)
 
     # ------------------------------------------------------------------
     # Internal

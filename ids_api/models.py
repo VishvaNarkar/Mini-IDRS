@@ -1,13 +1,14 @@
 """ids_api/models.py — Pydantic request/response models for the IDS API."""
 from __future__ import annotations
 
+from ipaddress import IPv4Address
 from typing import Any
 
 from pydantic import BaseModel, Field
 
 
 class BlockRequest(BaseModel):
-    ip:     str
+    ip:     IPv4Address
     reason: str = "manual"
 
     model_config = {
@@ -28,7 +29,7 @@ class UnblockResponse(BaseModel):
 
 
 class WhitelistAddRequest(BaseModel):
-    ip: str = Field(..., description="IP address to add to the whitelist")
+    ip: IPv4Address = Field(..., description="IP address to add to the whitelist")
 
 
 class ThresholdPatch(BaseModel):

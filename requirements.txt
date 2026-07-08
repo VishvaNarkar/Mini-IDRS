@@ -3,19 +3,23 @@ scapy==2.6.1
 paramiko==4.0.0             # Victim VM SSH blocking (iptables INPUT)
 
 # REST APIs + WebSockets (Firewall API + IDS API)
-fastapi>=0.115.0
-uvicorn[standard]>=0.34.0
-websockets>=13.0
+fastapi==0.115.14
+uvicorn[standard]==0.34.3
+websockets==13.1
 
 # Config
-pyyaml>=6.0.2
-python-dotenv>=1.1.0
+pyyaml==6.0.2
+python-dotenv==1.1.1
 
 # HTTP client
-requests>=2.32.0
+requests==2.32.4
 
 # Background scheduler
-apscheduler>=3.11.0
+apscheduler==3.11.0
 
 # System Stats
-psutil>=6.0.0
+psutil==6.1.1
+
+# Test and lint
+pytest==8.4.1
+ruff==0.12.2

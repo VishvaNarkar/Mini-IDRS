@@ -18,8 +18,6 @@ import logging
 import os
 
 # Allow --config flag to set the path before config.py singleton loads
-import sys
-
 _parser = argparse.ArgumentParser(
     description="Mini IDRS — Intrusion Detection & Response System",
     add_help=False,

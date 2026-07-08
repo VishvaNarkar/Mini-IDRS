@@ -112,15 +112,14 @@ class Config:
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _require_env(key: str) -> str:
-    """Read a required secret from the environment; raise clearly if missing."""
-    val = os.environ.get(key, "")
-    if not val:
-        raise EnvironmentError(
-            f"Required environment variable '{key}' is not set.\n"
-            f"  → Copy .env.example to .env and fill in a real value."
-        )
-    return val
+def _get_env(key: str) -> str:
+    """Read an optional secret from the environment.
+
+    Secrets are allowed to be empty so imports, API schema generation, and
+    tests can run without a fully provisioned lab .env file. Runtime callers
+    that actually need a secret should fail gracefully at the point of use.
+    """
+    return os.environ.get(key, "")
 
 
 # ---------------------------------------------------------------------------
@@ -128,11 +127,11 @@ def _require_env(key: str) -> str:
 # ---------------------------------------------------------------------------
 
 def load_config(path: str | Path = "config.yaml") -> Config:
-    """
-    Parse config.yaml and merge secrets from environment variables.
-    Raises EnvironmentError if any required secret is missing.
-    """
-    with open(path, "r") as fh:
+    """Parse config.yaml and merge optional secrets from environment variables."""
+    config_path = Path(path)
+    if not config_path.exists() and config_path.name == "config.yaml":
+        config_path = Path("config.yaml.example")
+    with open(config_path, "r") as fh:
         raw = yaml.safe_load(fh)
 
     n  = raw["network"]
@@ -154,18 +153,18 @@ def load_config(path: str | Path = "config.yaml") -> Config:
             url       = fa["url"],
             bind_host = fa["bind_host"],
             port      = fa["port"],
-            api_key   = _require_env("FIREWALL_API_KEY"),
+            api_key   = _get_env("FIREWALL_API_KEY"),
         ),
         ids_api=IDSAPIConfig(
             host            = ia["host"],
             port            = ia["port"],
             allowed_origins = ia.get("allowed_origins", []),
-            api_key         = _require_env("IDS_API_KEY"),
+            api_key         = _get_env("IDS_API_KEY"),
         ),
         victim=VictimConfig(
             ssh_port = v["ssh_port"],
-            ssh_user = _require_env("VICTIM_SSH_USER"),
-            ssh_pass = _require_env("VICTIM_SSH_PASS"),
+            ssh_user = _get_env("VICTIM_SSH_USER"),
+            ssh_pass = _get_env("VICTIM_SSH_PASS"),
         ),
         detection=DetectionConfig(
             syn_flood=SynFloodThresholds(**d["syn_flood"]),
@@ -178,7 +177,26 @@ def load_config(path: str | Path = "config.yaml") -> Config:
 
 
 # ---------------------------------------------------------------------------
-# Module-level singleton — imported by all other modules as `cfg`
+# Lazy module-level proxy — imported by other modules as `cfg`
 # ---------------------------------------------------------------------------
-_config_path: Path = Path(os.environ.get("IDRS_CONFIG", "config.yaml"))
-cfg: Config = load_config(_config_path)
+class LazyConfig:
+    """Load configuration on first attribute access and allow test injection."""
+
+    def __init__(self) -> None:
+        self._config: Config | None = None
+
+    def _load(self) -> Config:
+        if self._config is None:
+            config_path = Path(os.environ.get("IDRS_CONFIG", "config.yaml"))
+            self._config = load_config(config_path)
+        return self._config
+
+    def __getattr__(self, name: str):
+        return getattr(self._load(), name)
+
+    def set_config(self, config: Config | None) -> None:
+        """Inject an explicit Config for tests, or clear with None."""
+        self._config = config
+
+
+cfg = LazyConfig()

@@ -74,10 +74,7 @@ class EventPipeline:
         # 3 — Log
         log_event(event)
 
-        # 4 — Persist
-        self._blocks.add(event)
-
-        # 5 — Linux Firewall: FORWARD DROP via Firewall REST API → nftables
+        # 4 — Linux Firewall: FORWARD DROP via Firewall REST API → nftables
         fw_ok = self._firewall.block(attacker)
         logger.info(
             f"[PIPELINE] Firewall block({attacker}) → {'ok' if fw_ok else 'FAILED'}"
@@ -94,6 +91,14 @@ class EventPipeline:
             f"firewall={'ok' if fw_ok else 'FAIL'} "
             f"victim={'ok' if victim_ok else 'FAIL'}"
         )
+
+        # 6b — Persist only if at least one enforcement layer succeeded
+        if not (fw_ok or victim_ok):
+            logger.error(
+                f"[PIPELINE] Skipping persistence for {attacker} — all blockers failed"
+            )
+            return False
+        self._blocks.add(event, firewall_blocked=fw_ok, victim_blocked=victim_ok)
 
         # 7 — Optional callback
         if self._on_event:

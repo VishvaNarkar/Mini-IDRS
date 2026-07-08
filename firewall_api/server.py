@@ -22,6 +22,7 @@ Interactive API docs (lab use only):
 from __future__ import annotations
 
 import logging
+from ipaddress import IPv4Address
 
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException, status
@@ -77,13 +78,14 @@ def block_ip(
     req: BlockRequest,
     _key: str = Depends(require_api_key),
 ) -> BlockResponse:
-    ok = nftables.add_drop_rule(req.ip)
+    ip = str(req.ip)
+    ok = nftables.add_drop_rule(ip)
     if not ok:
         raise HTTPException(
             status_code=500,
-            detail=f"nftables: failed to add DROP rule for {req.ip}",
+            detail=f"nftables: failed to add DROP rule for {ip}",
         )
-    return BlockResponse(blocked=req.ip)
+    return BlockResponse(blocked=ip)
 
 
 @app.delete(
@@ -93,16 +95,17 @@ def block_ip(
     summary="Unblock an IP — remove its FORWARD DROP rule",
 )
 def unblock_ip(
-    ip: str,
+    ip: IPv4Address,
     _key: str = Depends(require_api_key),
 ) -> UnblockResponse:
-    ok = nftables.delete_drop_rule(ip)
+    ip_str = str(ip)
+    ok = nftables.delete_drop_rule(ip_str)
     if not ok:
         raise HTTPException(
             status_code=404,
-            detail=f"No IDRS-managed DROP rule found for {ip}",
+            detail=f"No IDRS-managed DROP rule found for {ip_str}",
         )
-    return UnblockResponse(unblocked=ip)
+    return UnblockResponse(unblocked=ip_str)
 
 
 @app.get(
