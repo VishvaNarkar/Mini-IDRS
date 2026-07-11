@@ -24,10 +24,12 @@ def require_api_key(
         raise RuntimeError(
             "IDS_API_KEY is not set. Copy .env.example to .env and fill in a value."
         )
-    if api_key != expected:
+    # Strip incoming key to avoid copy-paste trailing spaces/newlines from terminal
+    clean_key = api_key.strip() if api_key else None
+    if clean_key != expected:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or missing API key",
             headers={"WWW-Authenticate": "ApiKey"},
         )
-    return api_key
+    return clean_key

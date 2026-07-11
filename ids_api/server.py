@@ -144,7 +144,8 @@ async def websocket_endpoint(
     Authenticates using token parameter due to browser WebSocket limitations.
     """
     expected = os.environ.get("IDS_API_KEY", "").strip()
-    if not expected or token != expected:
+    clean_token = token.strip() if token else None
+    if not expected or clean_token != expected:
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
 
