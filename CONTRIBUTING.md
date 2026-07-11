@@ -39,7 +39,7 @@ git push origin feature/<name>
 
 Run the IDS monitor:
 ```bash
-sudo -E python idrs_monitor.py -i ens33
+sudo venv/bin/python idrs_monitor.py -i ens33
 ```
 
 Run the IDS API:

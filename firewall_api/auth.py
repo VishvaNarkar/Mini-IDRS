@@ -19,7 +19,7 @@ def require_api_key(
     api_key: str | None = Security(_api_key_header),
 ) -> str:
     """FastAPI dependency — raises 401 if X-API-Key header is missing or incorrect."""
-    expected = os.environ.get("FIREWALL_API_KEY", "")
+    expected = os.environ.get("FIREWALL_API_KEY", "").strip()
     if not expected:
         raise RuntimeError(
             "FIREWALL_API_KEY is not set in the environment. "

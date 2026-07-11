@@ -19,8 +19,8 @@ web dashboard for monitoring and control.
                                    ▼
                        ┌──────────────────────────┐
                        │     Linux Firewall VM    │
-                       │  eth0: 192.168.10.1/24   │ ← dnsmasq (DHCP + DNS)
-                       │  eth1: DHCP (VMnet8)     │ ← NAT / masquerade
+                       │  ens34: 192.168.10.1/24  │ ← dnsmasq (DHCP + DNS)
+                       │  ens33: DHCP (VMnet8)    │ ← NAT / masquerade
                        │  nftables FORWARD chain  │ ← drops attacker traffic
                        │  Firewall API :8080       │ ← internal only, API-key auth
                        └──────────────────────────┘

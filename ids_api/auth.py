@@ -19,7 +19,7 @@ def require_api_key(
     api_key: str | None = Security(_api_key_header),
 ) -> str:
     """FastAPI dependency — raises 401 if X-API-Key is missing or incorrect."""
-    expected = os.environ.get("IDS_API_KEY", "")
+    expected = os.environ.get("IDS_API_KEY", "").strip()
     if not expected:
         raise RuntimeError(
             "IDS_API_KEY is not set. Copy .env.example to .env and fill in a value."

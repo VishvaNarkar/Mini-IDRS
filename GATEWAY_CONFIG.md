@@ -10,8 +10,8 @@ No GNS3 or Cisco router required — this guide sets up an Ubuntu/Debian VM as a
 
 1. **Create a new VM** — Ubuntu Server 22.04 LTS (minimal install), 1 vCPU, 1 GB RAM.
 2. **Add two network adapters**:
-   - **NIC 1 (eth0)** → VMnet2 (Host-Only) — internal lab segment
-   - **NIC 2 (eth1)** → VMnet8 (NAT) — internet access
+   - **NIC 1 (ens34)** → VMnet2 (Host-Only) — internal lab segment
+   - **NIC 2 (ens33)** → VMnet8 (NAT) — internet access
 3. **Install Ubuntu** — create a user (e.g. `fwadmin`). **Do NOT use default passwords.**
 
 ---
@@ -25,19 +25,23 @@ sudo apt install -y nftables dnsmasq python3 python3-pip python3-venv git curl
 
 ---
 
-## Static IP on Internal Interface (eth0)
+## Static IP on Internal Interface (ens34)
 
-Edit `/etc/netplan/00-installer-config.yaml`:
+Edit `/etc/netplan/00-installer-config.yaml` (using the system's actual MAC address for `ens33`):
 
 ```yaml
 network:
-  version: 2
   ethernets:
-    eth0:
-      dhcp4: no
+    ens33:
+      dhcp4: true
+      dhcp6: true
+      match:
+        macaddress: 00:0c:29:b3:0a:10
+      set-name: ens33
+    ens34:
+      dhcp4: false
       addresses: [192.168.10.1/24]
-    eth1:
-      dhcp4: yes   # gets IP from VMnet8 NAT
+  version: 2
 ```
 
 Apply:
@@ -47,13 +51,13 @@ sudo netplan apply
 
 Verify:
 ```bash
-ip addr show eth0   # should show 192.168.10.1/24
+ip addr show ens34   # should show 192.168.10.1/24
 ip route            # should show default via VMnet8 gateway
 ```
 
 ---
 
-## IP Forwarding (routing between eth0 and eth1)
+## IP Forwarding (routing between ens34 and ens33)
 
 ```bash
 # Enable now
@@ -81,7 +85,7 @@ sudo nft add chain inet filter OUTPUT  '{ type filter hook output priority 0; po
 # NAT table for masquerade
 sudo nft add table ip nat
 sudo nft add chain ip nat POSTROUTING '{ type nat hook postrouting priority 100; }'
-sudo nft add rule  ip nat POSTROUTING oifname "eth1" masquerade
+sudo nft add rule  ip nat POSTROUTING oifname "ens33" masquerade
 ```
 
 ### Persist the ruleset
@@ -96,7 +100,7 @@ sudo systemctl start  nftables
 
 ```bash
 sudo nft list ruleset
-ping 8.8.8.8            # from Firewall VM — internet access via eth1
+ping 8.8.8.8            # from Firewall VM — internet access via ens33
 ping 192.168.10.12      # from Firewall VM — reach Monitor VM
 ```
 
@@ -108,7 +112,7 @@ Edit `/etc/dnsmasq.conf`:
 
 ```ini
 # Listen only on the internal interface
-interface=eth0
+interface=ens34
 bind-interfaces
 
 # DHCP pool for lab VMs (192.168.10.10 – 192.168.10.200)
@@ -232,5 +236,5 @@ curl -X DELETE -H "X-API-Key: your-key" \
 
 - The Firewall API is bound to `192.168.10.1:8080` only — it is **not reachable from internet**.
 - Use a strong, randomly generated `FIREWALL_API_KEY` (e.g. `python3 -c "import secrets; print(secrets.token_hex(32))"`).
-- Never expose port 8080 on the external interface (eth1).
+- Never expose port 8080 on the external interface (ens33).
 - Monitor SSH access to this VM (it's the most privileged host in the lab).

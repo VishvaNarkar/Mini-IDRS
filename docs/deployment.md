@@ -21,7 +21,7 @@ Configure each VM's network adapters:
 
 | VM | NIC 1 | NIC 2 |
 |----|-------|-------|
-| Linux Firewall | VMnet2 (eth0) | VMnet8 (eth1) |
+| Linux Firewall | VMnet2 (ens34) | VMnet8 (ens33) |
 | Monitor | VMnet2 | — |
 | Victim | VMnet2 | — |
 | Attacker (Kali) | VMnet2 | — |
@@ -31,7 +31,7 @@ Configure each VM's network adapters:
 ## Step 2 — Linux Firewall VM
 
 See **GATEWAY_CONFIG.md** for the complete setup guide covering:
-- Static IP on eth0 (`192.168.10.1/24`)
+- Static IP on ens34 (`192.168.10.1/24`)
 - IP forwarding
 - nftables table + chains + NAT masquerade
 - dnsmasq DHCP pool
@@ -43,7 +43,7 @@ See **GATEWAY_CONFIG.md** for the complete setup guide covering:
 
 ```bash
 # Get an IP from dnsmasq (or set static 192.168.10.12)
-sudo dhclient eth0
+sudo dhclient ens33
 
 # Clone the repo
 git clone https://github.com/VishvaNarkar/Mini-IDRS.git
@@ -76,7 +76,7 @@ echo "192.168.10.12" >> runtime/whitelist.txt   # Monitor (this host)
 
 ```bash
 # Get an IP or set static 192.168.10.14
-sudo dhclient eth0
+sudo dhclient ens33
 
 # Enable SSH
 sudo apt install openssh-server -y
@@ -98,9 +98,9 @@ victim ALL=(ALL) NOPASSWD: /sbin/iptables, /usr/sbin/iptables
 ```bash
 cd ~/Mini-IDRS
 source venv/bin/activate
-sudo -E python idrs_monitor.py -i ens33
+sudo venv/bin/python idrs_monitor.py -i ens33
 ```
-> `-E` preserves the virtual environment when running with sudo.
+> Running with `sudo venv/bin/python` ensures Scapy can open raw sockets (requires root) while resolving virtual environment libraries, bypassing setups where `sudo -E` is ignored.
 
 **Terminal 2 — IDS REST API:**
 ```bash
@@ -112,7 +112,7 @@ uvicorn ids_api.server:app --host 0.0.0.0 --port 5000
 **Terminal 3 — Dashboard (Optional: if serving stand-alone):**
 ```bash
 cd ~/Mini-IDRS/dashboard
-python -m http.server 8080
+python3 -m http.server 8080
 # Open http://192.168.10.12:8080 in a browser
 # Alternatively, open: http://192.168.10.12:5000/dashboard/index.html
 ```
@@ -182,7 +182,7 @@ curl -X DELETE -H "X-API-Key: your-key" \
 
 **Via PCAP Replay (offline testing):**
 ```bash
-python tools/replay.py --pcap runtime/pcaps/capture.pcap --dry-run
+python3 tools/replay.py --pcap runtime/pcaps/capture.pcap --dry-run
 ```
 
 ---

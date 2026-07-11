@@ -119,7 +119,7 @@ def _get_env(key: str) -> str:
     tests can run without a fully provisioned lab .env file. Runtime callers
     that actually need a secret should fail gracefully at the point of use.
     """
-    return os.environ.get(key, "")
+    return os.environ.get(key, "").strip()
 
 
 # ---------------------------------------------------------------------------

@@ -47,8 +47,8 @@ Mini-IDRS is an educational cybersecurity project that:
                                    ▼
                        ┌──────────────────────────┐
                        │     Linux Firewall VM    │
-                       │  eth0: 192.168.10.1/24   │ ← dnsmasq DHCP
-                       │  eth1: DHCP (VMnet8)     │ ← NAT / internet
+                       │  ens34: 192.168.10.1/24  │ ← dnsmasq DHCP
+                       │  ens33: DHCP (VMnet8)    │ ← NAT / internet
                        │  nftables FORWARD chain  │ ← drops attacker traffic
                        │  Firewall API :8080       │ ← internal-only, API-key auth
                        └──────────────────────────┘
@@ -131,7 +131,7 @@ sudo visudo  # Add: victim ALL=(ALL) NOPASSWD: /sbin/iptables
 
 ```bash
 # Terminal 1 — IDS Monitor
-sudo -E python idrs_monitor.py -i ens33
+sudo venv/bin/python idrs_monitor.py -i ens33
 
 # Terminal 2 — IDS API (serves dashboard at http://localhost:5000/dashboard/index.html)
 uvicorn ids_api.server:app --host 0.0.0.0 --port 5000

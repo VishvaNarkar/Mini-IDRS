@@ -62,11 +62,15 @@ app = FastAPI(
 # CORS Configuration
 # ---------------------------------------------------------------------------
 allowed = cfg.ids_api.allowed_origins or ["*"]
-allow_credentials = "*" not in allowed
+# FastAPI CORSMiddleware raises RuntimeError if allow_credentials=True and allow_origins contains "*"
+allow_creds = True
+if "*" in allowed:
+    allow_creds = False
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed,
-    allow_credentials=allow_credentials,
+    allow_credentials=allow_creds,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -139,7 +143,7 @@ async def websocket_endpoint(
     WebSocket endpoint for real-time alert broadcasts.
     Authenticates using token parameter due to browser WebSocket limitations.
     """
-    expected = os.environ.get("IDS_API_KEY", "")
+    expected = os.environ.get("IDS_API_KEY", "").strip()
     if not expected or token != expected:
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return

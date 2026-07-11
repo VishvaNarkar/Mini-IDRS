@@ -19,7 +19,7 @@ services:
   monitor:
     build: .
     network_mode: host          # Required for Scapy raw packet capture
-    command: python idrs_monitor.py -i ${IDRS_IFACE:-eth0}
+    command: python idrs_monitor.py -i ${IDRS_IFACE:-ens33}
     env_file: .env
     volumes:
       - ./config.yaml:/app/config.yaml:ro
