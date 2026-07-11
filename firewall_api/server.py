@@ -27,7 +27,9 @@ from ipaddress import IPv4Address
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException, status
 
-load_dotenv()   # load .env on the Firewall VM
+from pathlib import Path
+_env_path = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(dotenv_path=_env_path)   # load .env on the Firewall VM
 
 from firewall_api import nftables
 from firewall_api.auth import require_api_key

@@ -26,7 +26,8 @@ from fastapi import Depends, FastAPI, HTTPException, Query, status, WebSocket, W
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-load_dotenv()
+_env_path = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(dotenv_path=_env_path)
 
 from core.config import cfg
 from core.events import DetectionEvent, Severity

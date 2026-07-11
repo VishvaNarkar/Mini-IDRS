@@ -17,7 +17,8 @@ import yaml
 from dotenv import load_dotenv
 
 # Load .env into os.environ before any os.environ access.
-load_dotenv()
+_env_path = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(dotenv_path=_env_path)
 
 
 # ---------------------------------------------------------------------------
