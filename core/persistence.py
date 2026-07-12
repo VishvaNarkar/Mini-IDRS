@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import threading
 from pathlib import Path
 from typing import Any
@@ -134,6 +135,19 @@ class BlockStore:
             )
 
     def _flush(self) -> None:
+        # Create directory and ensure it has 0o777 permissions
         self._path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            os.chmod(self._path.parent, 0o777)
+        except Exception:
+            pass
+
+        # Write file
         with open(self._path, "w") as fh:
             json.dump(list(self._records.values()), fh, indent=2, ensure_ascii=False)
+
+        # Ensure file has 0o666 permissions
+        try:
+            os.chmod(self._path, 0o666)
+        except Exception:
+            pass

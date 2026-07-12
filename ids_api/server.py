@@ -127,8 +127,16 @@ _load_thresholds()
 def _write_thresholds() -> None:
     path = Path(cfg.paths.thresholds)
     path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        os.chmod(path.parent, 0o777)
+    except Exception:
+        pass
     with open(path, "w") as fh:
         json.dump(_thresholds, fh, indent=2)
+    try:
+        os.chmod(path, 0o666)
+    except Exception:
+        pass
 
 
 # ---------------------------------------------------------------------------

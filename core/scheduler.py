@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
@@ -158,8 +159,19 @@ class IDRSScheduler:
             "by_severity":    dict(sev_counts),
         }
         self._stats_file.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            os.chmod(self._stats_file.parent, 0o777)
+        except Exception:
+            pass
+
         with open(self._stats_file, "w") as fh:
             json.dump(stats, fh, indent=2)
+
+        try:
+            os.chmod(self._stats_file, 0o666)
+        except Exception:
+            pass
+
         logger.debug(f"[STATS] Aggregated and written to {self._stats_file}")
 
     def _cleanup_blocks(self) -> None:

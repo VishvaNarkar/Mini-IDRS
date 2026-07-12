@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import logging
 import logging.handlers
+import os
 from pathlib import Path
 
 from core.events import DetectionEvent, Severity
@@ -30,7 +31,12 @@ def setup_logging(log_file: str, level: str = "INFO") -> logging.Logger:
     Safe to call multiple times — duplicate handlers are not added.
     Returns the root logger.
     """
-    Path(log_file).parent.mkdir(parents=True, exist_ok=True)
+    parent_dir = Path(log_file).parent
+    parent_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        os.chmod(parent_dir, 0o777)
+    except Exception:
+        pass
 
     numeric_level = getattr(logging, level.upper(), logging.INFO)
     root = logging.getLogger()
@@ -51,6 +57,11 @@ def setup_logging(log_file: str, level: str = "INFO") -> logging.Logger:
     )
     fh.setFormatter(fmt)
     root.addHandler(fh)
+
+    try:
+        os.chmod(log_file, 0o666)
+    except Exception:
+        pass
 
     # Console handler
     ch = logging.StreamHandler()
