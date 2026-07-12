@@ -89,7 +89,7 @@ def list_blocked_ips() -> list[str]:
 def _run(args: list[str]) -> tuple[int, str, str]:
     try:
         result = subprocess.run(
-            ["nft"] + args,
+            ["sudo", "nft"] + args,
             capture_output=True,
             text=True,
             timeout=10,
