@@ -127,7 +127,8 @@ def _find_rules(ip: str) -> list[_NftRule]:
 
     # Search both chains
     for chain in ["FORWARD", "INPUT"]:
-        rc, out, _ = _run(["list", "chain", "-a", "inet", "filter", chain])
+        # Global option '-a' must be placed before the 'list' command
+        rc, out, _ = _run(["-a", "list", "chain", "inet", "filter", chain])
         if rc != 0:
             continue
 
