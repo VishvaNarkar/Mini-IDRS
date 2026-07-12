@@ -53,10 +53,12 @@ class BlockStore:
 
     def is_blocked(self, ip: str) -> bool:
         with self._lock:
+            self._load()
             return ip in self._records
 
     def all(self) -> list[dict[str, Any]]:
         with self._lock:
+            self._load()
             return sorted(
                 self._records.values(),
                 key=lambda r: r.get("timestamp", ""),
@@ -79,6 +81,7 @@ class BlockStore:
         paths pass the actual firewall/victim outcomes. No-op if recorded.
         """
         with self._lock:
+            self._load()  # Synchronize with disk first
             if event.attacker in self._records:
                 return
             self._records[event.attacker] = {
@@ -100,6 +103,7 @@ class BlockStore:
     def remove(self, ip: str) -> bool:
         """Remove a block record. Returns False if not found."""
         with self._lock:
+            self._load()  # Synchronize with disk first
             if ip not in self._records:
                 return False
             del self._records[ip]
@@ -120,13 +124,15 @@ class BlockStore:
     def _load(self) -> None:
         if not self._path.exists():
             logger.debug(f"[BLOCKSTORE] No existing file at {self._path} — starting fresh")
+            self._records.clear()
             return
         try:
             with open(self._path, "r", errors="ignore") as fh:
                 data: list[dict] = json.load(fh)
+            self._records.clear()  # Clear cache to reflect accurate disk state
             for rec in data:
                 self._records[rec["ip"]] = rec
-            logger.info(
+            logger.debug(
                 f"[BLOCKSTORE] Loaded {len(self._records)} records from {self._path}"
             )
         except (json.JSONDecodeError, KeyError, TypeError) as exc:
