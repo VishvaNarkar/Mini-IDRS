@@ -24,7 +24,7 @@ Liveness check.
 ---
 
 #### `POST /api/v1/rules`
-Add a FORWARD DROP rule for the given IP.
+Add FORWARD and INPUT DROP rules for the given IP.
 
 **Request body:**
 ```json
@@ -36,19 +36,21 @@ Add a FORWARD DROP rule for the given IP.
 { "blocked": "192.168.10.15" }
 ```
 
-**Effect:** `nft add rule inet filter FORWARD ip saddr 192.168.10.15 drop comment "idrs-block:192.168.10.15"`
+**Effect:** 
+- `nft add rule inet filter FORWARD ip saddr 192.168.10.15 drop comment "idrs-block:192.168.10.15"`
+- `nft add rule inet filter INPUT ip saddr 192.168.10.15 drop comment "idrs-block:192.168.10.15"`
 
 ---
 
 #### `DELETE /api/v1/rules/{ip}`
-Remove the IDRS-managed FORWARD DROP rule for the given IP.
+Remove all IDRS-managed DROP rules for the given IP across both the INPUT and FORWARD chains.
 
 **Response (200):**
 ```json
 { "unblocked": "192.168.10.15" }
 ```
 
-**Response (404):** IP not found in nftables chain.
+**Response (404):** IP not found in nftables chains.
 
 ---
 

@@ -223,7 +223,8 @@ curl -X POST -H "X-API-Key: your-key" -H "Content-Type: application/json" \
 
 # Verify in nftables
 sudo nft list chain inet filter FORWARD
-# Expected: rule with "ip saddr 192.168.10.99 drop comment "idrs-block:192.168.10.99""
+sudo nft list chain inet filter INPUT
+# Expected: rules with "ip saddr 192.168.10.99 drop comment "idrs-block:192.168.10.99"" in both chains
 
 # Remove the test block
 curl -X DELETE -H "X-API-Key: your-key" \

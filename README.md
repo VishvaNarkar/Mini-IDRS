@@ -11,8 +11,8 @@ Mini-IDRS is an educational cybersecurity project that:
 - Captures live network traffic with **Scapy**
 - Detects attacks using a **plugin-based engine** (each detector is an independent module)
 - Responds automatically via a **dual-layer block**:
-  - Linux Firewall VM — `nftables FORWARD` DROP rule (via Firewall REST API)
-  - Victim VM — `iptables INPUT` DROP rule (via Paramiko SSH)
+  - Linux Firewall VM — `nftables FORWARD` and `INPUT` DROP rules (via Firewall REST API)
+  - Victim VM — `iptables INPUT` DROP rules (via Paramiko SSH)
 - Exposes a **REST API** (FastAPI) for programmatic control
 - Provides a **custom SOC dashboard** (HTML/CSS/JS) served directly from the IDS API (FastAPI) or stand-alone, featuring real-time WebSockets and Apache ECharts visualizations.
 - Persists blocked IPs to `runtime/blocked.json` — state survives monitor restarts
@@ -49,7 +49,7 @@ Mini-IDRS is an educational cybersecurity project that:
                        │     Linux Firewall VM    │
                        │  ens34: 192.168.10.1/24  │ ← dnsmasq DHCP
                        │  ens33: DHCP (VMnet8)    │ ← NAT / internet
-                       │  nftables FORWARD chain  │ ← drops attacker traffic
+                       │  nftables FORWARD+INPUT  │ ← drops attacker traffic
                        │  Firewall API :8080       │ ← internal-only, API-key auth
                        └──────────────────────────┘
                                    │
@@ -167,14 +167,18 @@ Thresholds are adjustable live via the dashboard — no restart required.
 
 ```bash
 nmap -sX 192.168.10.14                              # XMAS scan
-sudo hping3 -S 192.168.10.14 -p 22 --flood         # SYN flood
+
+# SYN flood (Note: Scapy is written in Python; if --flood mode causes packet drops, use controlled rate to test: -i u10000)
+sudo hping3 -S 192.168.10.14 -p 22 -i u10000
+
 hydra -l root -P wordlist.txt ssh://192.168.10.14  # SSH brute-force
 ```
 
 **Verify blocks:**
 ```bash
-# Firewall VM
+# Firewall VM (Verify rules in both chains)
 sudo nft list chain inet filter FORWARD
+sudo nft list chain inet filter INPUT
 
 # Victim VM
 sudo iptables -L INPUT -n -v

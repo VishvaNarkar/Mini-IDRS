@@ -21,7 +21,7 @@ web dashboard for monitoring and control.
                        │     Linux Firewall VM    │
                        │  ens34: 192.168.10.1/24  │ ← dnsmasq (DHCP + DNS)
                        │  ens33: DHCP (VMnet8)    │ ← NAT / masquerade
-                       │  nftables FORWARD chain  │ ← drops attacker traffic
+                       │  nftables FORWARD+INPUT  │ ← drops attacker traffic
                        │  Firewall API :8080       │ ← internal only, API-key auth
                        └──────────────────────────┘
                                    │
@@ -64,7 +64,7 @@ web dashboard for monitoring and control.
 └──────┬───────────────┘
        │ subprocess
        ▼
-   nftables FORWARD chain — DROP rules per blocked IP
+   nftables FORWARD and INPUT chains — DROP rules per blocked IP
 
 
 
@@ -82,9 +82,9 @@ EventPipeline.process(event)
     ├── WhitelistManager  — skip if whitelisted
     ├── BlockStore.is_blocked — skip if already blocked
     ├── Logger            — write to runtime/logs/ids.log
-    ├── BlockStore.add    — persist to runtime/blocked.json
-    ├── FirewallManager   → HTTP → Firewall API → nftables FORWARD DROP
-    └── VictimBlocker     → SSH  → iptables INPUT DROP
+    ├── FirewallManager   → HTTP → Firewall API → nftables FORWARD + INPUT DROP
+    ├── VictimBlocker     → SSH  → iptables INPUT DROP
+    └── BlockStore.add    — persist to runtime/blocked.json
 
 Scheduler (APScheduler, background thread):
     ├── every 60s   → health_check()       ping Firewall API
@@ -162,8 +162,8 @@ class DetectionEvent:
 
 When an attack is detected, blocking happens in **two places**:
 
-1. **Linux Firewall VM** — `nftables FORWARD` DROP rule via Firewall API.  
-   Drops all traffic from the attacker before it enters the internal network.
+1. **Linux Firewall VM** — `nftables FORWARD` (routed) and `INPUT` (direct) DROP rules via Firewall API.  
+   Drops all traffic from the attacker before it enters the internal network or targets the gateway itself.
 
 2. **Victim VM** — `iptables INPUT` DROP rule via SSH.  
    Second line of defence if the Firewall rule is temporarily bypassed.

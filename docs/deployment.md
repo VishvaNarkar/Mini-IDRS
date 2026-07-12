@@ -135,7 +135,9 @@ docker compose up -d
 nmap -sX 192.168.10.14
 
 # SYN Flood (Severity: CRITICAL)
-sudo hping3 -S 192.168.10.14 -p 22 --flood
+# Note: Since Scapy's Python sniffer can drop packets under extreme flood rates, 
+# it is recommended to run the attack at a controlled rate (e.g. 100 packets/sec) to test:
+sudo hping3 -S 192.168.10.14 -p 22 -i u10000
 
 # SSH Brute-Force (Severity: HIGH)
 hydra -l root -P wordlist.txt ssh://192.168.10.14
@@ -152,7 +154,9 @@ tail -f runtime/logs/ids.log
 
 **Check Firewall rules (on Linux Firewall VM):**
 ```bash
+# Verify rules in both chains
 sudo nft list chain inet filter FORWARD
+sudo nft list chain inet filter INPUT
 ```
 
 **Check Victim iptables:**
